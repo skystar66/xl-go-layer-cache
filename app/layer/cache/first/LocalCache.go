@@ -2,8 +2,8 @@ package first
 
 import (
 	"encoding/json"
-	"g2cache/app/bizseer/entity"
-	"g2cache/app/bizseer/helper"
+	"g2cache/app/layer/entity"
+	"g2cache/app/layer/helper"
 	"github.com/coocood/freecache"
 	"sync"
 	"time"

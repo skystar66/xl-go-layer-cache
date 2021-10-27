@@ -1,10 +1,10 @@
 package sync
 
 import (
-	"g2cache/app/bizseer/cache/first"
-	"g2cache/app/bizseer/cache/interface"
-	"g2cache/app/bizseer/cache/sencond"
-	"g2cache/app/bizseer/helper"
+	"g2cache/app/layer/cache/first"
+	"g2cache/app/layer/cache/interface"
+	"g2cache/app/layer/cache/sencond"
+	"g2cache/app/layer/helper"
 	"github.com/gogf/gf/os/glog"
 	jsoniter "github.com/json-iterator/go"
 	"sync"

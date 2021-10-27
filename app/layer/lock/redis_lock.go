@@ -1,7 +1,7 @@
 package lock
 
 import (
-	"g2cache/app/bizseer/cache/sencond"
+	"g2cache/app/layer/cache/sencond"
 	"github.com/gogf/gf/os/glog"
 	"sync"
 	"time"

@@ -1,7 +1,7 @@
 package _interface
 
 import (
-	"g2cache/app/bizseer/entity"
+	"g2cache/app/layer/entity"
 	"time"
 )
 

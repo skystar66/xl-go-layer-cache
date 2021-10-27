@@ -2,12 +2,12 @@ package task
 
 import (
 	"fmt"
-	"g2cache/app/bizseer/cache/sencond"
-	"g2cache/app/bizseer/helper"
-	"g2cache/app/bizseer/lock"
-	"g2cache/app/bizseer/pool"
-	"g2cache/app/bizseer/pubsub"
-	sync2 "g2cache/app/bizseer/sync"
+	"g2cache/app/layer/cache/sencond"
+	"g2cache/app/layer/helper"
+	"g2cache/app/layer/lock"
+	"g2cache/app/layer/pool"
+	"g2cache/app/layer/pubsub"
+	sync2 "g2cache/app/layer/sync"
 	"github.com/gogf/gf/os/glog"
 	"github.com/robfig/cron"
 	"sync"

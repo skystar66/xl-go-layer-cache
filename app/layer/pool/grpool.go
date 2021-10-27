@@ -1,7 +1,7 @@
 package pool
 
 import (
-	"g2cache/app/bizseer/helper"
+	"g2cache/app/layer/helper"
 	"github.com/gogf/gf/os/glog"
 	"runtime"
 	"sync"

@@ -2,10 +2,10 @@ package sencond
 
 import (
 	"fmt"
-	"g2cache/app/bizseer/cache/interface"
-	"g2cache/app/bizseer/entity"
-	"g2cache/app/bizseer/helper"
-	g2cache "g2cache/app/bizseer/log"
+	"g2cache/app/layer/cache/interface"
+	"g2cache/app/layer/entity"
+	"g2cache/app/layer/helper"
+	g2cache "g2cache/app/layer/log"
 	"github.com/gogf/gf/os/glog"
 	"github.com/gomodule/redigo/redis"
 	jsoniter "github.com/json-iterator/go"

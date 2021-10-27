@@ -1,7 +1,7 @@
 package main
 
 import (
-	"g2cache/app/bizseer/cache"
+	"g2cache/app/layer/cache"
 	"github.com/gogf/gf/container/gtype"
 )
 
