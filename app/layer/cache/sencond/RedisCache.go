@@ -134,10 +134,14 @@ func (c *RedisCache) LRange(key string, startOffset, endOffset int64) ([]_interf
 	default:
 
 	}
-	result, _ := helper.LRange(c.pool, key, startOffset, endOffset)
-	metaData := []_interface.ChannelMetedata{}
-	helper.Decode(result, nil, &metaData)
-	return metaData, nil
+	result, _ := redis.Values(helper.LRange(c.pool, key, startOffset, endOffset))
+	metaDatas := []_interface.ChannelMetedata{}
+	metaData := &_interface.ChannelMetedata{}
+	for _, v := range result {
+		helper.Decode(v, nil, metaData)
+		metaDatas = append(metaDatas, *metaData)
+	}
+	return metaDatas, nil
 }
 
 func (c *RedisCache) LPush(key string, member interface{}) error {

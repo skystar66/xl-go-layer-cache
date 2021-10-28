@@ -26,15 +26,19 @@ var (
 	CacheMonitorJobQueueSecond  = 5    //任务队列监控
 
 	LAST_PUSH_TIME int64=0 //最后一次处理推消息的时间戳
+
+	OFFSET int64 = 0 //维护拉取消息队列的offset
 )
 
 const (
 	LayeringTermExpireTime   = "layering-cache:term-redis:%s"
 	LayeringExecuteDBTime    = "layering-cache:execute-db:%s"
 	Cron_Clean_Message_Queue = "0 0 3 * * ?" //每天凌晨3点执行一次
+
 	//缓存主动在失效前强制刷新缓存的时间，默认20s
 	PreloadTime         int64  = 20
 	RECONNECTION_TIME   int64  = 10 * 1000 //pub/sub 重连时间间隔
+
 	LayeringMsgQueueKey string = "layering-cache:message-key:%s"
 	//更新、添加
 	SetPublishType int64 = iota

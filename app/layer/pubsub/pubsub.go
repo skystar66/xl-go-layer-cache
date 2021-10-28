@@ -6,6 +6,7 @@ import (
 	"g2cache/app/layer/cache/sencond"
 	"g2cache/app/layer/helper"
 	"g2cache/app/layer/pool"
+	"g2cache/app/layer/pullmsg"
 	sync2 "g2cache/app/layer/sync"
 	"github.com/gogf/gf/os/glog"
 	jsoniter "github.com/json-iterator/go"
@@ -15,7 +16,6 @@ import (
 )
 
 //维护一个offset
-var OFFSET int64=0
 
 type PubSubService struct {
 	//线程池
@@ -30,6 +30,8 @@ type PubSubService struct {
 	firstcache *first.FreeCache
 	//处理队列消息同步服务
 	syncdata *sync2.SyncDataService
+
+	pullmsg *pullmsg.PullMsg
 }
 
 //初始化
@@ -54,6 +56,7 @@ func NewPubSub() *PubSubService {
 	redisCache, _ := sencond.NewRedisCache()
 	syncdataservice:=sync2.NewSyncDataService()
 
+	pullmsg:=pullmsg.NewPullMsg()
 	once.Do(func() {
 		pubsub := PubSubService{
 			pool:       pool,
@@ -63,6 +66,7 @@ func NewPubSub() *PubSubService {
 			firstcache: freecache,
 			channel:    make(chan *_interface.ChannelMetedata, 1024), //默认消息通道大小1024个
 			syncdata: syncdataservice,
+			pullmsg: pullmsg,
 		}
 		onceinstance = &pubsub
 	})
@@ -98,11 +102,12 @@ func (s *PubSubService) subscribeHandler() {
 		}
 		metaDump, _ := jsoniter.MarshalToString(meta)
 		glog.Infof("subscribeHandle receive meta: %v\n", metaDump)
-		//消息的偏移量+1
-		atomic.AddInt64(&OFFSET, 1)
+		////消息的偏移量+1
+		//atomic.AddInt64(&OFFSET, 1)
 		//设置最后一次的推送时间
 		atomic.SwapInt64(&helper.LAST_PUSH_TIME, time.Now().Unix())
 		//处理业务数据
-		s.syncdata.SyncData(meta)
+		//s.syncdata.SyncData(meta)
+		s.pullmsg.PullMsg()
 	}
 }

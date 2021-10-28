@@ -150,7 +150,6 @@ func (g *LayeringCache) Set(key string, obj interface{}) error {
 	value := entity.NewEntity(obj, g.firstExpireTime, g.sencondExpireTime)
 	g.setCache(key, value)
 	metaDump, _ := jsoniter.MarshalToString(value)
-
 	glog.Infof("设置缓存成功，key:%s , value: %s\n", key, metaDump)
 	return nil
 }
@@ -256,7 +255,7 @@ func (g *LayeringCache) isRefresh(key string) bool {
 	if ttl < 0 {
 		return true
 	}
-	if ttl < g.preloadTime {
+	if ttl < int(time.Duration(g.preloadTime).Seconds()) {
 		return true
 	}
 	return false

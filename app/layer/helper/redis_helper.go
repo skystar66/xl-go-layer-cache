@@ -17,7 +17,7 @@ var DefaultPubSubRedisConf RedisConf
 func InitRedis() {
 
 	DefaultRedisConf.HOST = "127.0.0.1:6379"
-	DefaultRedisConf.DB = 1
+	DefaultRedisConf.DB = 0
 	DefaultRedisConf.MaxConn = 10
 	DefaultPubSubRedisConf = DefaultRedisConf
 
@@ -59,7 +59,7 @@ func LLen(pool *redis.Pool, key string) (int64, error) {
 		return 0, err
 	}
 	defer conn.Close()
-	num, _ := conn.Do("RPOP", key)
+	num, _ := conn.Do("LLen", key)
 	return gconv.Int64(num), err
 }
 
@@ -217,6 +217,16 @@ func encode(val interface{}) (interface{}, error) {
 
 // decode 反序列化保存的struct对象
 func Decode(reply interface{}, err error, val interface{}) error {
+	str, err := redis.String(reply, err)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal([]byte(str), val)
+}
+
+
+// decode 反序列化保存的struct对象
+func DecodeSlice(reply []interface{}, err error, val []interface{}) error {
 	str, err := redis.String(reply, err)
 	if err != nil {
 		return err

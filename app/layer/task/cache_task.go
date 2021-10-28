@@ -7,6 +7,7 @@ import (
 	"g2cache/app/layer/lock"
 	"g2cache/app/layer/pool"
 	"g2cache/app/layer/pubsub"
+	"g2cache/app/layer/pullmsg"
 	sync2 "g2cache/app/layer/sync"
 	"github.com/gogf/gf/os/glog"
 	"github.com/robfig/cron"
@@ -28,6 +29,8 @@ type CacheTask struct {
 	pubsubs *pubsub.PubSubService
 	syncdata *sync2.SyncDataService
 
+	pullmsg *pullmsg.PullMsg
+
 
 }
 
@@ -36,8 +39,8 @@ func InitTask() {
 	cacheTask:=NewCacheTask()
 	//服务启动同步最新的消息偏移量OFFSET
 	cacheTask.SyncOffset()
-	//启动拉取消息任务线程,防止丢消息
-	go cacheTask.taskPullMsg()
+	//todo 启动拉取消息任务线程,防止丢消息
+	//go cacheTask.taskPullMsg()
 	//启动凌晨重置消息队列任务线程
 	go cacheTask.clearMessageQueueTask()
 	//重连检测，防止redis,pub ,sub 掉线
@@ -57,6 +60,7 @@ func NewCacheTask()*CacheTask {
 	redisCache,_:= sencond.NewRedisCache()
 	redislock:=lock.NewRedisLock(redisCache)
 	syncdataservice:=sync2.NewSyncDataService()
+	pullmsg:=pullmsg.NewPullMsg()
 	once.Do(func() {
 		cacheTask :=CacheTask{
 			pool:       pool,
@@ -66,6 +70,7 @@ func NewCacheTask()*CacheTask {
 			redisLock:  redislock,
 			pubsubs:    pubsubs,
 			syncdata: syncdataservice,
+			pullmsg: pullmsg,
 		}
 		onceinstance = &cacheTask
 	})
@@ -77,7 +82,7 @@ func NewCacheTask()*CacheTask {
 func (c *CacheTask) SyncOffset() {
 	key := fmt.Sprintf(helper.LayeringMsgQueueKey, "node1")
 	offset, _ := c.rediscache.Llen(key)
-	atomic.SwapInt64(&pubsub.OFFSET, offset-1)
+	atomic.SwapInt64(&helper.OFFSET, offset-1)
 
 	glog.Infof("同步 OFFSET:【%d】 成功", offset-1)
 }
@@ -92,7 +97,7 @@ func (c *CacheTask) clearMessageQueueTask() {
 			c.rediscache.Evict(key)
 		}
 		// 重置偏移量，其它服务器也会更新
-		atomic.SwapInt64(&pubsub.OFFSET, -1)
+		atomic.SwapInt64(&helper.OFFSET, -1)
 		defer c.redisLock.UnLock(key)
 	})
 	if err != nil {
@@ -139,30 +144,7 @@ func (c *CacheTask) taskPullMsg() {
 			t.Stop()
 			return
 		case <-t.C:
-			c.pullMsg()
+			c.pullmsg.PullMsg()
 		}
-	}
-}
-
-//拉取redis数据
-func (t *CacheTask) pullMsg() {
-	//获取redis的最新的offset
-	key := fmt.Sprintf(helper.LayeringMsgQueueKey, "node1")
-	num, _ := t.rediscache.Llen(key)
-	maxOffset := num - 1
-	oldOffset := atomic.SwapInt64(&pubsub.OFFSET, maxOffset)
-	if oldOffset != 0 && oldOffset >= maxOffset {
-		/**本地已是最新同步的缓存信息啦*/
-		return
-	}
-	endOffset := maxOffset - oldOffset - 1
-	/**获取消息*/
-	result, _ := t.rediscache.LRange(key, 0, endOffset)
-	if len(result) <= 0 {
-		return
-	}
-	for _, data := range result {
-		glog.Infof("【缓存同步】redis 通过PULL方式处理本地缓存，startOffset:【0】,endOffset:【{}】,消息内容：{}", endOffset, data)
-		t.syncdata.SyncData(&data)
 	}
 }
