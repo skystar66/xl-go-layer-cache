@@ -97,11 +97,13 @@ func (s *PubSubService) subscribeHandler() {
 
 		}
 		if meta.Key == "" {
-			glog.Infof("subscribeHandle receive meta.Key is null: %+v\n", meta)
+			glog.Debugf("subscribeHandle receive meta.Key is null: %+v\n", meta)
 			continue
 		}
 		metaDump, _ := jsoniter.MarshalToString(meta)
-		glog.Infof("subscribeHandle receive meta: %v\n", metaDump)
+		if helper.CacheDebug {
+			glog.Debugf("subscribeHandle receive meta: %v\n", metaDump)
+		}
 		////消息的偏移量+1
 		//atomic.AddInt64(&OFFSET, 1)
 		//设置最后一次的推送时间

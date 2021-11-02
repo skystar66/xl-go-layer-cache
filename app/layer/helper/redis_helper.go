@@ -18,7 +18,7 @@ func InitRedis() {
 
 	DefaultRedisConf.HOST = "127.0.0.1:6379"
 	DefaultRedisConf.DB = 0
-	DefaultRedisConf.MaxConn = 10
+	DefaultRedisConf.MaxConn = 60
 	DefaultPubSubRedisConf = DefaultRedisConf
 
 	glog.Info("redis  初始化成功！！！")

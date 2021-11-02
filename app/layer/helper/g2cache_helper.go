@@ -18,12 +18,13 @@ var (
 	ObjNotEmpty      = errors.New("cache obj not empty !!!")
 	LoadDataNotEmpty = errors.New("load  data function not empty !!!")
 
-	DefaultGPoolWorkerNum       = 10  // 线程数量
-	DefaultGPoolJobQueueChanLen = 1000 //任务队列
+	DefaultGPoolWorkerNum       = 200  // 线程数量
+	DefaultGPoolJobQueueChanLen = 300000 //任务队列
 	PULL_MSG_TIME_SENCOND       = 30   //默认30s执行一次拉取消息的任务
 	CacheMonitorSecond          = 5    //缓存监控
 	SencondCacheExpireSencond   = 30   //二级缓存的过期时间，默认是一级缓存的30倍
 	CacheMonitorJobQueueSecond  = 5    //任务队列监控
+	CacheDebug bool = false
 
 	LAST_PUSH_TIME int64=0 //最后一次处理推消息的时间戳
 
@@ -40,6 +41,9 @@ const (
 	RECONNECTION_TIME   int64  = 10 * 1000 //pub/sub 重连时间间隔
 
 	LayeringMsgQueueKey string = "layering-cache:message-key:%s"
+
+	Lock_Prefix="layer_cache_lock_prefix_"
+
 	//更新、添加
 	SetPublishType int64 = iota
 	//清除缓存

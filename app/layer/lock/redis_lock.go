@@ -28,7 +28,7 @@ const (
         return -1
     end 
     if res==ARGV[1] then
-        redis.call('EXPIRE', KEYS[1], ARGV[2])
+        redis.call('EXPIRE', KEYS[1], ARGV[1])
         return 1
     else
         return 0
@@ -42,6 +42,7 @@ const (
     end 
     if res==ARGV[1] then
         redis.call('DEL', KEYS[1])
+		return 1
     else
         return 0
     end 
@@ -65,10 +66,10 @@ func NewRedisLock(cache *sencond.RedisCache) *RedisLock {
 func (l *RedisLock) ResetExpireTime(key string, ttlSencond int) {
 	for true {
 		if ok, err := l.redis.RenewalExpiretime(key, SCRIPT_EXPIRE, ttlSencond); err != nil {
-			glog.Infof("luaExpire exec error", err)
+			glog.Debugf("luaExpire exec error", err)
 			break
 			if !ok {
-				glog.Infof("Reset expire failed. key=%s", key)
+				glog.Debugf("Reset expire failed. key=%s", key)
 				break
 			}
 			glog.Infof("Reset expire succeed. key=%s", key)
@@ -85,7 +86,7 @@ func (l *RedisLock) Lock(key string, ttlSencond int) bool {
 }
 
 //释放锁
-func (l *RedisLock) UnLock(key string) bool {
-	ok, _ := l.redis.Unlock(key, SCRIPT_UN_LOCK)
-	return ok
+func (l *RedisLock) UnLock(key string) (bool,error) {
+	ok, err := l.redis.Unlock(key, SCRIPT_UN_LOCK)
+	return ok,err
 }

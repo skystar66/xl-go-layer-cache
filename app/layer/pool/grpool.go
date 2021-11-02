@@ -73,7 +73,7 @@ func NewWorker(id int, pool *Pool) *worker {
 //线程执行
 func (w *worker) start() {
 	go func() {
-		glog.Infof("Pool [%d] worker start run ...", w.id)
+		glog.Debugf("Pool [%d] worker start run ...", w.id)
 		defer w.pool.wg.Done()
 		//监听队列消息
 		w.listener()
@@ -85,7 +85,7 @@ func (w *worker) listener() {
 	for {
 		select {
 		case <-w.pool.stopped:
-			glog.Infof("Pool [%d] worker stop run ...", w.id)
+			glog.Debugf("Pool [%d] worker stop run ...", w.id)
 			//将剩余任务全部执行
 			if len(w.pool.jobQueue) > 0 {
 
@@ -109,14 +109,14 @@ func runJob(id int, f func()) {
 	defer func() {
 		//使用recover 配合defer 捕获panic异常
 		if err := recover(); err != nil {
-			glog.Infof("Pool [%d] Job panic err: %v, stack: %v\n", id, err, string(outputStackErr()))
+			glog.Debugf("Pool [%d] Job panic err: %v, stack: %v\n", id, err, string(outputStackErr()))
 		}
 	}()
 	//执行业务
 	f()
 }
 
-//封装job,//todo 其实没什么卵用，只是提供一个口子，后期如果想加点什么东西 再说吧
+//封装job,// todo 其实没什么卵用，只是提供一个口子，后期如果想加点什么东西 再说吧
 func (p *Pool) wrapperJob(job func()) func() {
 	return job
 }
@@ -180,7 +180,7 @@ func (p *Pool) monitor() {
 			t.Stop()
 			return
 		case <-t.C:
-			glog.Infof("Pool jobQueue current len %d", len(p.jobQueue))
+			glog.Debugf("Pool jobQueue current len %d", len(p.jobQueue))
 		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"g2cache/app/layer/helper"
 	g2cache "g2cache/app/layer/log"
 	"github.com/gogf/gf/os/glog"
+	"github.com/gogf/gf/util/gconv"
 	"github.com/gomodule/redigo/redis"
 	jsoniter "github.com/json-iterator/go"
 	"sync"
@@ -63,10 +64,10 @@ func (c *RedisCache) Get(key string, resultObj interface{}) (*entity.CacheEntity
 	if err != nil {
 		return nil, false, err
 	}
-	var result entity.CacheEntity
+	result := &entity.CacheEntity{}
 	result.Value = resultObj //设置反射类型
 	jsoniter.UnmarshalFromString(value, result)
-	return &result, true, nil
+	return result, true, nil
 }
 
 func (c *RedisCache) Set(key string, e *entity.CacheEntity) error {
@@ -181,10 +182,13 @@ func (c *RedisCache) Subscribe(dataChan chan<- *_interface.ChannelMetedata) erro
 	pubsubConn := c.pubsubPool.Get()
 	pubsub := redis.PubSubConn{pubsubConn}
 	if err := pubsub.Subscribe(DefaultPubSubRedisChannel); err != nil {
-		glog.Infof("rds subscribe channel=%v, err=%v\n", err)
+		glog.Debugf("rds subscribe channel=%v, err=%v\n", err)
 		return err
 	}
-	glog.Infof("rds subscribe channel=%v success! start listener...\n", DefaultPubSubRedisChannel)
+	if helper.CacheDebug {
+		glog.Debugf("rds subscribe channel=%v success! start listener...\n", DefaultPubSubRedisChannel)
+
+	}
 
 Loop:
 	for {
@@ -198,7 +202,9 @@ Loop:
 			metadata := &_interface.ChannelMetedata{}
 			err := jsoniter.Unmarshal(v.Data, metadata)
 			if err != nil {
-				glog.Infof("rds subscribe Unmarshal data: %v,err:%v\n", metadata, err)
+				if helper.CacheDebug {
+					glog.Debugf("rds subscribe Unmarshal data: %v,err:%v\n", metadata, err)
+				}
 				continue
 			}
 			select {
@@ -208,7 +214,7 @@ Loop:
 			}
 			dataChan <- metadata
 		case error:
-			glog.Infof("rds subscribe receive error, msg=%v\n", v)
+			glog.Debugf("rds subscribe receive error, msg=%v\n", v)
 			break Loop
 		}
 	}
@@ -224,15 +230,18 @@ func (c *RedisCache) Publish(data *_interface.ChannelMetedata) error {
 	}
 	msg, _ := jsoniter.MarshalToString(data)
 	helper.RedisPublish(c.pubsubPool, DefaultPubSubRedisChannel, msg)
-	glog.Infof("key: %s,channel：%s,msg：%s publish success!", data.Key, DefaultPubSubRedisChannel, msg)
-
+	if helper.CacheDebug {
+		glog.Debugf("key: %s,channel：%s,msg：%s publish success!", data.Key, DefaultPubSubRedisChannel, msg)
+	}
 	return nil
 }
 
 func (c *RedisCache) Lock(key, script string, ttlSencond, kecount int) (bool, error) {
 	luaLockScript := redis.NewScript(kecount, script)
 	conn, _ := helper.GetRedisConn(c.pool)
-	lockResult, _ := luaLockScript.Do(conn, key, ttlSencond)
+	defer conn.Close()
+	lockKey := gconv.String(helper.Lock_Prefix) + gconv.String(key)
+	lockResult, _ := luaLockScript.Do(conn, lockKey, lockKey, ttlSencond)
 	result, _ := redis.Int(lockResult, nil)
 	if result != 1 {
 		return false, nil
@@ -244,7 +253,14 @@ func (c *RedisCache) Lock(key, script string, ttlSencond, kecount int) (bool, er
 func (c *RedisCache) Unlock(key, script string) (bool, error) {
 	luaLockScript := redis.NewScript(1, script)
 	conn, _ := helper.GetRedisConn(c.pool)
-	luaLockScript.Do(conn, key)
+	defer conn.Close()
+
+	lockKey := gconv.String(helper.Lock_Prefix) + gconv.String(key)
+	result, err := luaLockScript.Do(conn, lockKey, lockKey)
+	count, _ := redis.Int(result, nil)
+	if count != 1 {
+		return false, err
+	}
 	return true, nil
 
 }
@@ -252,7 +268,9 @@ func (c *RedisCache) Unlock(key, script string) (bool, error) {
 func (c *RedisCache) RenewalExpiretime(key, script string, ttlSencond int) (bool, error) {
 	luaLockScript := redis.NewScript(1, script)
 	conn, _ := helper.GetRedisConn(c.pool)
-	lockResult, _ := luaLockScript.Do(conn, key, ttlSencond)
+	defer conn.Close()
+	lockKey := gconv.String(helper.Lock_Prefix) + gconv.String(key)
+	lockResult, _ := luaLockScript.Do(conn, lockKey, ttlSencond)
 	result, _ := redis.Int(lockResult, nil)
 	if result != 1 {
 		return false, nil

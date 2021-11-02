@@ -51,7 +51,9 @@ func (t *PullMsg) PullMsg() {
 		return
 	}
 	for _, data := range result {
-		glog.Infof("【缓存同步】redis 通过PULL方式处理本地缓存，startOffset:【0】,endOffset:【%d】,消息内容：%s", endOffset, data)
+		if helper.CacheDebug {
+			glog.Debugf("【缓存同步】redis 通过PULL方式处理本地缓存，startOffset:【0】,endOffset:【%d】,消息内容：%s", endOffset, data)
+		}
 		t.syncdata.SyncData(&data)
 	}
 }

@@ -41,11 +41,14 @@ func (s *SyncDataService) SyncData(metedata *_interface.ChannelMetedata) {
 		/**更新一级缓存*/
 		s.firstcache.SetExpireTime(metedata.Key, metedata.Data, time.Duration(metedata.Data.FirstExpireTime))
 		value,_:=jsoniter.MarshalToString(metedata.Data)
-		glog.Infof("【一级缓存同步】更新一级缓存数据,key=%s,消息内容=%s", metedata.Key,value )
-
+		if helper.CacheDebug {
+			glog.Debugf("【一级缓存同步】更新一级缓存数据,key=%s,消息内容=%s", metedata.Key,value )
+		}
 	case helper.DelPublishType:
 		/**清除一级缓存*/
 		s.firstcache.Evict(metedata.Key)
-		glog.Infof("【一级缓存同步】删除一级缓存数据,key=%s", metedata.Key)
+		if helper.CacheDebug {
+			glog.Debugf("【一级缓存同步】删除一级缓存数据,key=%s", metedata.Key)
+		}
 	}
 }

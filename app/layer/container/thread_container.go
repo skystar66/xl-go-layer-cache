@@ -2,6 +2,8 @@ package container
 
 import (
 	"container/list"
+	"fmt"
+	"g2cache/app/layer/helper"
 	"github.com/gogf/gf/os/glog"
 	"github.com/orcaman/concurrent-map"
 	"sync"
@@ -18,7 +20,7 @@ const (
 func InitThreadTimeout() {
 
 	//todo 自动检测超时线程，自动释放
-	//CheckTimeoutThread()
+	CheckTimeoutThread()
 
 	glog.Info("自动检测线程  初始化成功！！！")
 
@@ -34,6 +36,7 @@ type ThreadContainer struct {
 }
 
 type ThreadCondMap struct {
+	key  string
 	cond *sync.Cond
 	//存入时间
 	time int64
@@ -56,7 +59,7 @@ func NewThreadContainer() *ThreadContainer {
 	return onceinstance
 }
 
-func (t *ThreadContainer) Await(key string, cond *sync.Cond,timeout int64) {
+func (t *ThreadContainer) Await(key string, cond *sync.Cond, timeout int64) {
 	t.getShardsLock(key)
 	tc, _ := threadContainerMap.Get(key)
 	var lists *list.List
@@ -66,8 +69,9 @@ func (t *ThreadContainer) Await(key string, cond *sync.Cond,timeout int64) {
 		lists = tc.(*list.List)
 	}
 	tcm := ThreadCondMap{
-		cond: cond,
-		time: time.Now().Unix(),
+		key:     key,
+		cond:    cond,
+		time:    time.Now().Unix(),
 		timeout: timeout,
 	}
 	lists.PushBack(tcm)
@@ -77,33 +81,51 @@ func (t *ThreadContainer) Await(key string, cond *sync.Cond,timeout int64) {
 }
 
 func (t *ThreadContainer) NotifyAll(key string) {
+	defer func() {
+		if err := recover(); err != nil {
+			//fmt.Println(err)
+			glog.Error(err)
+		}
+	}()
+	//t.getShardsLock(key)
 	tc, _ := threadContainerMap.Get(key)
 	if tc != nil {
 		lists := tc.(*list.List)
-		for i := lists.Front(); i != nil; i = i.Next() {
-			cond := i.Value.(*ThreadCondMap)
-			cond.cond.Signal()
+		for l := lists.Front(); l != nil; l = l.Next() {
+			tc := l.Value.(ThreadCondMap)
+			tc.cond.Signal()
+		}
+	} else {
+		if helper.CacheDebug {
+			glog.Debugf("key=%s thread container is null", key)
 		}
 	}
+	//t.releaseShardsLock(key)
 }
 
 //自动检测超时线程，自动释放
 func CheckTimeoutThread() {
 	go func() {
 		for true {
-			for _, value := range threadContainerMap.Items() {
+			for key, value := range threadContainerMap.Items() {
 				lists := value.(*list.List)
+				fmt.Printf("key=%s size=%d \n", key, lists.Len())
 				for i := lists.Front(); i != nil; i = i.Next() {
-					tcm := i.Value.(*ThreadCondMap)
+					tcm := i.Value.(ThreadCondMap)
 					//校验锁是否超时
 					if (time.Now().Unix() - tcm.time) >= tcm.timeout {
 						//大于500ms自动释放
 						tcm.cond.Signal()
+						if helper.CacheDebug {
+							glog.Debugf("【检测线程】key=%s,出现 timeout，自动唤醒", key)
+						}
+						//移除当前元素
+						lists.Remove(i)
 					}
 				}
 			}
 			//每秒执行一遍
-			time.Sleep(1*time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}()
 }

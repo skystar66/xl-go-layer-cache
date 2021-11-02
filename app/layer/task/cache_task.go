@@ -84,7 +84,7 @@ func (c *CacheTask) SyncOffset() {
 	offset, _ := c.rediscache.Llen(key)
 	atomic.SwapInt64(&helper.OFFSET, offset-1)
 
-	glog.Infof("同步 OFFSET:【%d】 成功", offset-1)
+	glog.Debugf("同步 OFFSET:【%d】 成功", offset-1)
 }
 
 //todo 试一下 每2s一次

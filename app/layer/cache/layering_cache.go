@@ -49,7 +49,6 @@ func init() {
 	task.InitTask()
 }
 
-
 //创建一个分布式缓存
 func NewCache(preloadTime, firstExpireTime, sencondExpireTime int, forceRefresh bool) (layerCache *LayeringCache, err error) {
 	//创建一级缓存
@@ -109,16 +108,16 @@ func (g *LayeringCache) Get(key string, obj interface{}, loadFn _interface.LoadD
 	if loadFn == nil {
 		return nil, helper.LoadDataNotEmpty
 	}
-
-	var resultObj *entity.CacheEntity
 	//查询一级缓存
-	result, ok, _ := g.freecache.Get(key, resultObj)
+	result, ok, _ := g.freecache.Get(key, obj)
 	if ok && result != nil {
-		glog.Infof("freecache 命中一级缓存 key=%s,result=%s", key, json.ToJson(result))
+		if helper.CacheDebug {
+			glog.Debugf("freecache 命中一级缓存 key=%s,result=%s", key, json.ToJson(result))
+		}
 		return g.getResult(result), nil
 	}
 	//查询二级缓存
-	result, ok, _ = g.redis.Get(key, resultObj)
+	result, ok, _ = g.redis.Get(key, obj)
 	if result == nil {
 		//查询数据库
 		result = g.executeCacheMethod(key, obj, loadFn)
@@ -128,8 +127,15 @@ func (g *LayeringCache) Get(key string, obj interface{}, loadFn _interface.LoadD
 	}
 	//设置一级缓存
 	g.freecache.SetExpireTime(key, result, time.Duration(g.firstExpireTime))
-	glog.Infof("查询二级缓存,并将数据放到一级缓存。 key=%s,返回值是:%s", key, json.ToJson(result))
+	if helper.CacheDebug {
+		glog.Debugf("查询二级缓存,并将数据放到一级缓存。 key=%s,返回值是:%s", key, json.ToJson(result))
+	}
 	return g.getResult(result), nil
+}
+
+func (g *LayeringCache) Delete(key string) {
+	g.redis.Evict(key)
+	g.freecache.Evict(key)
 }
 
 //设置key value ttl
@@ -150,7 +156,9 @@ func (g *LayeringCache) Set(key string, obj interface{}) error {
 	value := entity.NewEntity(obj, g.firstExpireTime, g.sencondExpireTime)
 	g.setCache(key, value)
 	metaDump, _ := jsoniter.MarshalToString(value)
-	glog.Infof("设置缓存成功，key:%s , value: %s\n", key, metaDump)
+	if helper.CacheDebug {
+		glog.Debugf("设置缓存成功，key:%s , value: %s\n", key, metaDump)
+	}
 	return nil
 }
 
@@ -158,21 +166,21 @@ func (g *LayeringCache) Set(key string, obj interface{}) error {
 func (g *LayeringCache) executeCacheMethod(key string, obj interface{}, loadFn _interface.LoadDataSourceFunc) *entity.CacheEntity {
 	lock := &sync.Mutex{}
 	cond := sync.NewCond(lock)
-	cond.L.Lock()
 	var resultLoad *entity.CacheEntity
 	for true {
-		var resultObj *entity.CacheEntity
+		resultObj := &entity.CacheEntity{}
 		resultObj.Value = obj
 		//查询一级缓存
-		result, ok, _ := g.freecache.Get(key, resultObj)
+		result, ok, _ := g.freecache.Get(key, obj)
 		if ok && result != nil {
 			resultLoad = result
-			glog.Infof("redis缓存 key= %s 获取到锁后查询一级缓存命中，不需要执行查询DB的方法", key)
+			if helper.CacheDebug {
+				glog.Debugf("缓存 key= %s 获取到锁后查询一级缓存命中，不需要执行查询DB的方法", key)
+			}
 			break
 		}
 		//获取分布式锁
-		defer g.redisLock.UnLock(key)
-		if g.redisLock.Lock(key, 5) {
+		if g.redisLock.Lock(key, 10*60) {
 			dbresult, _ := loadFn(key)
 			//如果数据库为nil,赋予默认值，给个超时时间10s
 			if dbresult == nil {
@@ -185,23 +193,39 @@ func (g *LayeringCache) executeCacheMethod(key string, obj interface{}, loadFn _
 				resultLoad = defaultValue
 				break
 			}
-			helper.Clone(dbresult, resultObj)
+			resultObj.Value = dbresult
 			//使用默认过期时间
 			resultObj.FirstExpireTime = g.firstExpireTime
 			resultObj.SencondExpireTime = g.sencondExpireTime
 			g.setCache(key, resultObj)
-			glog.Infof("缓存 key= %s 从数据库获取数据完毕并放入一级缓存二级缓存，唤醒所有等待线程", key)
+			if helper.CacheDebug {
+				glog.Debugf("缓存 key= %s,value=%s, 从数据库获取数据完毕并放入一级缓存二级缓存，唤醒所有等待线程", key, json.ToJson(resultObj))
+			}
 			//通知释放资源
 			g.tcn.NotifyAll(key)
 			resultLoad = resultObj
+			ok,err:=g.redisLock.UnLock(key)
+			if !ok {
+				if helper.CacheDebug {
+					if err!=nil {
+						glog.Debugf("缓存 key= %s,释放redis分布式锁发生错误,err:%s", key,err.Error())
+					}else {
+						glog.Debugf("缓存 key= %s,释放redis分布式锁发生错误!!!", key)
+
+					}
+				}
+			}
 			break
 		} else {
-			glog.Infof("缓存 key= %s 从数据库获取数据未获取到锁，进入等待状态!", key)
+			cond.L.Lock()
+			if helper.CacheDebug {
+				glog.Debugf("缓存 key= %s 从数据库获取数据未获取到锁，进入等待状态!", key)
+			}
 			//线程阻塞 500ms
-			g.tcn.Await(key, cond, 500)
+			g.tcn.Await(key, cond, 1)
+			cond.L.Unlock()
 		}
 	}
-	cond.L.Unlock()
 	return resultLoad
 }
 
@@ -214,7 +238,9 @@ func (g *LayeringCache) refreshCache(key string, result interface{}, loadFn _int
 			//校验是否强制刷新
 			if !g.forceRefresh {
 				//软刷新
-				glog.Infof("redis缓存 key=%s 软刷新缓存模式", key)
+				if helper.CacheDebug {
+					glog.Debugf("redis缓存 key=%s 软刷新缓存模式", key)
+				}
 				g.softRefresh(key)
 			} else {
 				//强制刷新
@@ -264,7 +290,6 @@ func (g *LayeringCache) isRefresh(key string) bool {
 //设置缓存
 func (g *LayeringCache) setCache(key string, resultObj *entity.CacheEntity) {
 	g.freecache.SetExpireTime(key, resultObj, time.Duration(resultObj.FirstExpireTime))
-	g.redis.SetExpireTime(key, resultObj, time.Duration(resultObj.SencondExpireTime))
 	data := &_interface.ChannelMetedata{
 		Key:    key,
 		Gid:    uuid.New().String(),
@@ -272,6 +297,7 @@ func (g *LayeringCache) setCache(key string, resultObj *entity.CacheEntity) {
 		Data:   resultObj,
 	}
 	g.pool.SendJob(func() {
+		g.redis.SetExpireTime(key, resultObj, time.Duration(resultObj.SencondExpireTime))
 		msgQueuekey := fmt.Sprintf(helper.LayeringMsgQueueKey, "node1")
 		g.redis.LPush(msgQueuekey, data)
 		g.redis.Publish(data)
