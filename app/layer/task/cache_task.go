@@ -28,7 +28,6 @@ type CacheTask struct {
 	redisLock *lock.RedisLock
 	pubsubs *pubsub.PubSubService
 	syncdata *sync2.SyncDataService
-
 	pullmsg *pullmsg.PullMsg
 
 
@@ -148,3 +147,15 @@ func (c *CacheTask) taskPullMsg() {
 		}
 	}
 }
+//关闭
+func (c *CacheTask) Close() {
+	c.stopOnce.Do(func() {
+		c.pubsubs.Close()
+		close(c.stop)
+	})
+}
+
+
+
+
+

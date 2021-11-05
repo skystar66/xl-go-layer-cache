@@ -25,20 +25,17 @@ func main() {
 	//创建一个缓存 一级缓存过期时间：20s，二级缓存过期时间：6小时，预刷新缓存的时间：10s
 	cache, _ := cache.NewCache(int(10*time.Second), int(50*time.Second), int(6*60*60*time.Second), false)
 
-
 	//todo 测试一下超时自动恢复
-
-
 
 	//TestCache(cache)
 	//cache
 	//压测写入
-	//for i := 0; i < 1; i++ {
+	//for i := 0; i < 2; i++ {
 	//	AbTestWrite(cache)
 	//}
 
 	//压测读取
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 10; i++ {
 		AbTestRead(cache)
 	}
 
@@ -49,30 +46,31 @@ func main() {
 
 func TestCache(cache *cache.LayeringCache) {
 
+	key1 := "qqq"
+	key2 := "wwww"
+	cache.Set(key1,key1)
+	cache.Set(key2,key2)
 
-	key1:="qqq"
-	key2:="wwww"
 	cache.Delete(key1)
 	cache.Delete(key2)
-	for g:=0;g<1;g++ {
-		go func(index int) {
-			value,_:=cache.Get(key1,gtype.String{}, func(key string) (interface{}, error) {
-				glog.Debugf("key=%s,获取数据库数据！！！",key)
-				return key,nil
-			})
-			fmt.Printf(
-				"key=%s,获取到value:%s \n",key1,gconv.String(value))
-		}(g)
-		//go func(index int) {
-		//	value,_:=cache.Get(key2,gtype.String{}, func(key string) (interface{}, error) {
-		//		glog.Debugf("key=%s,获取数据库数据！！！",key)
-		//		return key,nil
-		//	})
-		//	fmt.Printf(
-		//		"key=%s,获取到value:%s \n",key2,gconv.String(value))
-		//}(g)
-	}
-
+	//for g := 0; g < 1; g++ {
+	//	go func(index int) {
+	//		value, _ := cache.Get(key1, gtype.String{}, func(key string) (interface{}, error) {
+	//			glog.Debugf("key=%s,获取数据库数据！！！", key)
+	//			return key, nil
+	//		})
+	//		fmt.Printf(
+	//			"key=%s,获取到value:%s \n", key1, gconv.String(value))
+	//	}(g)
+	//	//go func(index int) {
+	//	//	value,_:=cache.Get(key2,gtype.String{}, func(key string) (interface{}, error) {
+	//	//		glog.Debugf("key=%s,获取数据库数据！！！",key)
+	//	//		return key,nil
+	//	//	})
+	//	//	fmt.Printf(
+	//	//		"key=%s,获取到value:%s \n",key2,gconv.String(value))
+	//	//}(g)
+	//}
 
 	//cache.Set("test-1","test1")
 	//
@@ -91,14 +89,12 @@ func TestCache(cache *cache.LayeringCache) {
 	//cache.Set("test-3","test3")
 }
 
-
-
 func AbTestWrite(cache *cache.LayeringCache) {
 
-	threadNum :=300   // 线程数
-	dataNum := 1000000/threadNum //每个线程处理的数量
+	threadNum := 150               // 线程数
+	dataNum := 1000000 / threadNum //每个线程处理的数量
 
-	prefixKey:="abTest:" //key的前缀
+	prefixKey := "abTest:" //key的前缀
 
 	//模拟100万写入的qps，10线程
 	start := time.Now().Unix()
@@ -107,7 +103,7 @@ func AbTestWrite(cache *cache.LayeringCache) {
 	for i := 0; i < threadNum; i++ {
 		go func(index int) {
 			for j := 0; j < dataNum; j++ {
-				key := fmt.Sprint(prefixKey+gconv.String(index) + "-" + gconv.String(j))
+				key := fmt.Sprint(prefixKey + gconv.String(index) + "-" + gconv.String(j))
 				cache.Set(key, key)
 			}
 			wg.Done()
@@ -117,20 +113,19 @@ func AbTestWrite(cache *cache.LayeringCache) {
 	end := time.Now().Unix() - start
 	if end > 0 {
 		totalReq := gconv.String(threadNum * dataNum)
-		qps := gconv.String((int64(threadNum * dataNum) / end)*20)
-		cpu:=gconv.String(CpuCount())
-		fmt.Println( cpu+ "-core->" + totalReq + "请求：use" +
-			"：" + gconv.String(end) + "s" +",线程数："+gconv.String(threadNum)+ ",qps:" + qps + "/s")
+		qps := gconv.String((int64(threadNum*dataNum) / end) * 20)
+		cpu := gconv.String(CpuCount())
+		fmt.Println(time.Now().String()+","+cpu + "-core->" + totalReq + "请求：use" +
+			"：" + gconv.String(end) + "s" + ",线程数：" + gconv.String(threadNum) + ",qps:" + qps + "/s")
 	}
 }
-
 
 //压测读取纯内存+redis+数据库
 func AbTestRead(cache *cache.LayeringCache) {
 
-	threadNum := 100   // 线程数
-	dataNum := 1000000/threadNum //每个线程处理的数量
-	prefixKey:="abTest:" //key的前缀
+	threadNum := 200               // 线程数
+	dataNum := 1000000 / threadNum //每个线程处理的数量
+	prefixKey := "abTest:"         //key的前缀
 	//模拟100万的qps，10线程
 	start := time.Now().Unix()
 	wg := sync.WaitGroup{}
@@ -138,12 +133,12 @@ func AbTestRead(cache *cache.LayeringCache) {
 	for i := 0; i < threadNum; i++ {
 		go func(index int) {
 			for j := 0; j < dataNum; j++ {
-				key := fmt.Sprint(prefixKey+gconv.String(index) + "-" + gconv.String(j))
+				key := fmt.Sprint(prefixKey + gconv.String(index) + "-" + gconv.String(j))
 				cache.Get(key, gtype.String{}, func(key string) (interface{}, error) {
 					if helper.CacheDebug {
-						glog.Debugf("获取数据库初始化数据！！！")
+						glog.Debugf("key=%s 获取数据库数据！! ", key)
 					}
-					return key,nil
+					return key, nil
 				})
 			}
 			wg.Done()
@@ -153,25 +148,12 @@ func AbTestRead(cache *cache.LayeringCache) {
 	end := time.Now().Unix() - start
 	if end > 0 {
 		totalReq := gconv.String(threadNum * dataNum)
-		qps := gconv.String(int64(threadNum * dataNum) / end)
-		cpu:=gconv.String(CpuCount())
-		fmt.Println( cpu+ "-core->" + totalReq + "请求：use" +
-			"：" + gconv.String(end) + "s" +",线程数："+gconv.String(threadNum)+ ",qps:" + qps + "/s")
+		qps := gconv.String(int64(threadNum*dataNum) / end)
+		cpu := gconv.String(CpuCount())
+		fmt.Println(time.Now().String()+","+cpu + "-core->" + totalReq + "请求：use" +
+			"：" + gconv.String(end) + "s" + ",线程数：" + gconv.String(threadNum) + ",qps:" + qps + "/s")
 	}
 }
-
-//模拟一个 随机 多个线程 跑一个key的数据，并默认 一二级缓存不存在，直接查库
-func AbTestRead2(cache *cache.LayeringCache) {
-
-
-
-
-
-
-
-
-}
-
 
 func CpuCount() int {
 	num, _ := cpu.Counts(false)

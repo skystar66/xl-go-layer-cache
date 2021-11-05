@@ -3,6 +3,7 @@ package pool
 import (
 	"g2cache/app/layer/helper"
 	"github.com/gogf/gf/os/glog"
+	"log"
 	"runtime"
 	"sync"
 	"time"
@@ -13,8 +14,8 @@ type job func()
 
 //表示线程池
 type worker struct {
-	id   int
-	pool *Pool
+	id   int //线程id
+	pool *Pool //所属线程池
 }
 type Pool struct {
 
@@ -26,6 +27,8 @@ type Pool struct {
 	stopped  chan struct{}
 	//线程阻塞等待
 	wg sync.WaitGroup
+	//补货线程池中的异常
+	PanicHandler func(interface{})
 }
 
 var (
@@ -73,6 +76,16 @@ func NewWorker(id int, pool *Pool) *worker {
 //线程执行
 func (w *worker) start() {
 	go func() {
+		defer func() {
+			//捕获线程中的异常
+			if r := recover(); r != nil { // 恢复 panic
+				if w.pool.PanicHandler != nil { // 如果设置了 PanicHandler, 调用
+					w.pool.PanicHandler(r)
+				} else { // 默认处理
+					log.Printf("Worker panic: %s\n", r)
+				}
+			}
+		}()
 		glog.Debugf("Pool [%d] worker start run ...", w.id)
 		defer w.pool.wg.Done()
 		//监听队列消息
@@ -186,7 +199,7 @@ func (p *Pool) monitor() {
 }
 
 //todo 释放
-func (p *Pool) release() {
+func (p *Pool) Release() {
 	close(p.stopped)
 	force := make(chan struct{})
 	forceOne := sync.Once{}

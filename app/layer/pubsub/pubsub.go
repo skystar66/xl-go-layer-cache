@@ -54,9 +54,9 @@ func NewPubSub() *PubSubService {
 	pool := pool.NewPool(helper.DefaultGPoolWorkerNum, helper.DefaultGPoolJobQueueChanLen)
 	freecache := first.NewFirstCache()
 	redisCache, _ := sencond.NewRedisCache()
-	syncdataservice:=sync2.NewSyncDataService()
+	syncdataservice := sync2.NewSyncDataService()
 
-	pullmsg:=pullmsg.NewPullMsg()
+	pullmsg := pullmsg.NewPullMsg()
 	once.Do(func() {
 		pubsub := PubSubService{
 			pool:       pool,
@@ -65,20 +65,14 @@ func NewPubSub() *PubSubService {
 			redis:      redisCache,
 			firstcache: freecache,
 			channel:    make(chan *_interface.ChannelMetedata, 1024), //默认消息通道大小1024个
-			syncdata: syncdataservice,
-			pullmsg: pullmsg,
+			syncdata:   syncdataservice,
+			pullmsg:    pullmsg,
 		}
 		onceinstance = &pubsub
 	})
 	return onceinstance
 }
 func (s *PubSubService) Subscribe() bool {
-	select {
-	case <-s.stop:
-		return false
-	default:
-
-	}
 	s.pool.SendJob(func() {
 		//订阅redis
 		s.redis.Subscribe(s.channel)
@@ -112,4 +106,11 @@ func (s *PubSubService) subscribeHandler() {
 		//s.syncdata.SyncData(meta)
 		s.pullmsg.PullMsg()
 	}
+}
+
+//关闭
+func (s *PubSubService) Close() {
+	s.stopOnce.Do(func() {
+		close(s.stop)
+	})
 }

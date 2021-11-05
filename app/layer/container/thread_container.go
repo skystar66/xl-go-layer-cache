@@ -95,10 +95,6 @@ func (t *ThreadContainer) NotifyAll(key string) {
 			tc := l.Value.(ThreadCondMap)
 			tc.cond.Signal()
 		}
-	} else {
-		if helper.CacheDebug {
-			glog.Debugf("key=%s thread container is null", key)
-		}
 	}
 	//t.releaseShardsLock(key)
 }

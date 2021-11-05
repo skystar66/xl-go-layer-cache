@@ -2,34 +2,10 @@ package helper
 
 import (
 	"encoding/json"
-	"github.com/gogf/gf/os/glog"
 	"github.com/gogf/gf/util/gconv"
 	"github.com/gomodule/redigo/redis"
 	"time"
 )
-//默认的redis配置
-var DefaultRedisConf RedisConf
-
-//默认的redis pubs sub配置
-var DefaultPubSubRedisConf RedisConf
-
-
-func InitRedis() {
-
-	DefaultRedisConf.HOST = "127.0.0.1:6379"
-	DefaultRedisConf.DB = 0
-	DefaultRedisConf.MaxConn = 60
-	DefaultPubSubRedisConf = DefaultRedisConf
-
-	glog.Info("redis  初始化成功！！！")
-
-}
-type RedisConf struct {
-	HOST    string
-	Pwd     string
-	DB      int
-	MaxConn int
-}
 //redis pub sub channel
 func RedisPublish(pool *redis.Pool, channel string, message string) error {
 	conn, err := GetRedisConn(pool)
@@ -151,12 +127,12 @@ func GetRedisConn(pool *redis.Pool) (redis.Conn, error) {
 func GetRedisPool() (*redis.Pool, error) {
 	pool := &redis.Pool{
 		Dial: func() (redis.Conn, error) {
-			c, err := redis.Dial("tcp", DefaultRedisConf.HOST)
+			c, err := redis.Dial("tcp", Redis_HOST)
 			if err != nil {
 				return nil, err
 			}
-			if DefaultRedisConf.Pwd != "" {
-				if _, err := c.Do("AUTH", DefaultRedisConf.Pwd); err != nil {
+			if Redis_PWD != "" {
+				if _, err := c.Do("AUTH", Redis_PWD); err != nil {
 					errC := c.Close()
 					if errC != nil {
 						return nil, errC
@@ -164,8 +140,8 @@ func GetRedisPool() (*redis.Pool, error) {
 					return nil, err
 				}
 			}
-			if DefaultRedisConf.DB > 0 {
-				if _, err := c.Do("SELECT", DefaultRedisConf.DB); err != nil {
+			if Redis_DB > 0 {
+				if _, err := c.Do("SELECT", Redis_DB); err != nil {
 					errC := c.Close()
 					if errC != nil {
 						return nil, errC
@@ -179,8 +155,8 @@ func GetRedisPool() (*redis.Pool, error) {
 			_, err := c.Do("PING")
 			return err
 		},
-		MaxIdle:         DefaultRedisConf.MaxConn,
-		MaxActive:       DefaultRedisConf.MaxConn,
+		MaxIdle:         Redis_MaxConn,
+		MaxActive:       Redis_MaxConn,
 		IdleTimeout:     300 * time.Second,
 		Wait:            true,
 		MaxConnLifetime: 30 * time.Minute,

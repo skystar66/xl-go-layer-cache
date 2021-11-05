@@ -43,7 +43,7 @@ type LayeringCache struct {
 }
 
 func init() {
-	helper.InitRedis()
+	//helper.InitRedis()
 	container.InitThreadTimeout()
 	pubsub.InitPubSub()
 	task.InitTask()
@@ -134,8 +134,21 @@ func (g *LayeringCache) Get(key string, obj interface{}, loadFn _interface.LoadD
 }
 
 func (g *LayeringCache) Delete(key string) {
-	g.redis.Evict(key)
+	//清除二级缓存
 	g.freecache.Evict(key)
+	data := &_interface.ChannelMetedata{
+		Key:    key,
+		Gid:    uuid.New().String(),
+		Action: helper.DelPublishType,
+		Data:   nil,
+	}
+	//通知其他服务器清除一级缓存
+	g.pool.SendJob(func() {
+		msgQueuekey := fmt.Sprintf(helper.LayeringMsgQueueKey, "node1")
+		g.redis.LPush(msgQueuekey, data)
+		g.redis.Publish(data)
+	})
+
 }
 
 //设置key value ttl
@@ -204,12 +217,12 @@ func (g *LayeringCache) executeCacheMethod(key string, obj interface{}, loadFn _
 			//通知释放资源
 			g.tcn.NotifyAll(key)
 			resultLoad = resultObj
-			ok,err:=g.redisLock.UnLock(key)
+			ok, err := g.redisLock.UnLock(key)
 			if !ok {
 				if helper.CacheDebug {
-					if err!=nil {
-						glog.Debugf("缓存 key= %s,释放redis分布式锁发生错误,err:%s", key,err.Error())
-					}else {
+					if err != nil {
+						glog.Debugf("缓存 key= %s,释放redis分布式锁发生错误,err:%s", key, err.Error())
+					} else {
 						glog.Debugf("缓存 key= %s,释放redis分布式锁发生错误!!!", key)
 
 					}
@@ -313,18 +326,20 @@ func (g *LayeringCache) getResult(result *entity.CacheEntity) interface{} {
 	return result.Value
 }
 
-//todo
-//
-//func (g *LayeringCache) close() {
-//	if g.stop != nil {
-//		close(g.stop)
-//	}
-//	if g.redis != nil {
-//		g.redis.Close()
-//	}
-//	if g.freecache != nil {
-//		g.freecache.Close()
-//	}
-//
-//}
+func (g *LayeringCache) close() {
+	if g.stop != nil {
+		close(g.stop)
+	}
+	if g.redis != nil {
+		g.redis.Close()
+	}
+	if g.freecache != nil {
+		g.freecache.Close()
+	}
+	if g.pool != nil {
+		g.pool.Release()
+	}
+
+}
+
 //

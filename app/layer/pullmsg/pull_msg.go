@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"g2cache/app/layer/cache/sencond"
 	"g2cache/app/layer/helper"
+	"g2cache/app/layer/json"
 	sync2 "g2cache/app/layer/sync"
 	"github.com/gogf/gf/os/glog"
 	"sync"
@@ -52,7 +53,7 @@ func (t *PullMsg) PullMsg() {
 	}
 	for _, data := range result {
 		if helper.CacheDebug {
-			glog.Debugf("【缓存同步】redis 通过PULL方式处理本地缓存，startOffset:【0】,endOffset:【%d】,消息内容：%s", endOffset, data)
+			glog.Debugf("【缓存同步】redis 通过PULL方式处理本地缓存，startOffset:【0】,endOffset:【%d】,消息内容：%s", endOffset, json.ToJson(data))
 		}
 		t.syncdata.SyncData(&data)
 	}
