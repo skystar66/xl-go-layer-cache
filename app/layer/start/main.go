@@ -9,8 +9,11 @@ import (
 	"github.com/gogf/gf/util/gconv"
 	"github.com/shirou/gopsutil/cpu"
 	"sync"
+	"sync/atomic"
 	"time"
 )
+
+var executeCount int32 = 0
 
 func main() {
 
@@ -35,7 +38,7 @@ func main() {
 	//}
 
 	//压测读取
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		AbTestRead(cache)
 	}
 
@@ -48,8 +51,8 @@ func TestCache(cache *cache.LayeringCache) {
 
 	key1 := "qqq"
 	key2 := "wwww"
-	cache.Set(key1,key1)
-	cache.Set(key2,key2)
+	cache.Set(key1, key1)
+	cache.Set(key2, key2)
 
 	cache.Delete(key1)
 	cache.Delete(key2)
@@ -115,7 +118,7 @@ func AbTestWrite(cache *cache.LayeringCache) {
 		totalReq := gconv.String(threadNum * dataNum)
 		qps := gconv.String((int64(threadNum*dataNum) / end) * 20)
 		cpu := gconv.String(CpuCount())
-		fmt.Println(time.Now().String()+","+cpu + "-core->" + totalReq + "请求：use" +
+		fmt.Println(time.Now().String() + "," + cpu + "-core->" + totalReq + "请求：use" +
 			"：" + gconv.String(end) + "s" + ",线程数：" + gconv.String(threadNum) + ",qps:" + qps + "/s")
 	}
 }
@@ -150,7 +153,7 @@ func AbTestRead(cache *cache.LayeringCache) {
 		totalReq := gconv.String(threadNum * dataNum)
 		qps := gconv.String(int64(threadNum*dataNum) / end)
 		cpu := gconv.String(CpuCount())
-		fmt.Println(time.Now().String()+","+cpu + "-core->" + totalReq + "请求：use" +
+		fmt.Println("第:" + gconv.String(atomic.AddInt32(&executeCount, 1)) + "次," + cpu + "-core-> " + totalReq + "请求：use" +
 			"：" + gconv.String(end) + "s" + ",线程数：" + gconv.String(threadNum) + ",qps:" + qps + "/s")
 	}
 }
