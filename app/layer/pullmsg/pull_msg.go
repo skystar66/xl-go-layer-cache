@@ -38,6 +38,7 @@ func NewPullMsg() *PullMsg {
 func (t *PullMsg) PullMsg() {
 	//获取redis的最新的offset
 	key := fmt.Sprintf(helper.LayeringMsgQueueKey, "node1")
+	//获取消息队列的最大长度 maxOffset
 	num, _ := t.rediscache.Llen(key)
 	maxOffset := num - 1
 	oldOffset := atomic.SwapInt64(&helper.OFFSET, maxOffset)
@@ -46,7 +47,7 @@ func (t *PullMsg) PullMsg() {
 		return
 	}
 	endOffset := maxOffset - oldOffset - 1
-	/**获取消息*/
+	/**获取获取队列最新数据 进行同步数据*/
 	result, _ := t.rediscache.LRange(key, 0, endOffset)
 	if len(result) <= 0 {
 		return

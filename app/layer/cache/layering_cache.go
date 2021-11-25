@@ -108,7 +108,7 @@ func (g *LayeringCache) Get(key string, obj interface{}, loadFn _interface.LoadD
 	if loadFn == nil {
 		return nil, helper.LoadDataNotEmpty
 	}
-	//查询一级缓存
+	//查询一级缓存 L1
 	result, ok, _ := g.freecache.Get(key, obj)
 	if ok && result != nil {
 		if helper.CacheDebug {
@@ -116,7 +116,7 @@ func (g *LayeringCache) Get(key string, obj interface{}, loadFn _interface.LoadD
 		}
 		return g.getResult(result), nil
 	}
-	//查询二级缓存
+	//查询二级缓存 L2
 	result, ok, _ = g.redis.Get(key, obj)
 	if result == nil {
 		//查询数据库
@@ -214,7 +214,7 @@ func (g *LayeringCache) executeCacheMethod(key string, obj interface{}, loadFn _
 			if helper.CacheDebug {
 				glog.Debugf("缓存 key= %s,value=%s, 从数据库获取数据完毕并放入一级缓存二级缓存，唤醒所有等待线程", key, json.ToJson(resultObj))
 			}
-			//通知释放资源
+			//通知释放线程容器线程等待资源
 			g.tcn.NotifyAll(key)
 			resultLoad = resultObj
 			ok, err := g.redisLock.UnLock(key)
@@ -312,6 +312,7 @@ func (g *LayeringCache) setCache(key string, resultObj *entity.CacheEntity) {
 	g.pool.SendJob(func() {
 		g.redis.SetExpireTime(key, resultObj, time.Duration(resultObj.SencondExpireTime))
 		msgQueuekey := fmt.Sprintf(helper.LayeringMsgQueueKey, "node1")
+		//todo 基于redis pub/sub 推模式，拉模式，所以这里可以不需要传数据啦，节省带宽
 		g.redis.LPush(msgQueuekey, data)
 		g.redis.Publish(data)
 	})
