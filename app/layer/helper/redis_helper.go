@@ -43,6 +43,7 @@ func LLen(pool *redis.Pool, key string) (int64, error) {
 // 下标(index)参数 start 和 stop 都以 0 为底，也就是说，以 0 表示列表的第一个元素，以 1 表示列表的第二个元素，以此类推。
 // 你也可以使用负数下标，以 -1 表示列表的最后一个元素， -2 表示列表的倒数第二个元素，以此类推。
 // 和编程语言区间函数的区别：end 下标也在 LRANGE 命令的取值范围之内(闭区间)。
+// LRANGE与 LPush 配合使用，Lpush 存储元素在队列的头部，Lrange 获取Lpush队列的第一个元素(最近的一个元素)
 func LRange(pool *redis.Pool, key string, start, end int64) (interface{}, error) {
 	conn, err := GetRedisConn(pool)
 	if err != nil {
@@ -52,7 +53,7 @@ func LRange(pool *redis.Pool, key string, start, end int64) (interface{}, error)
 	return conn.Do("LRANGE", key, start, end)
 }
 
-// LPush 将一个值插入到列表头部
+// LPush 将一个值插入到列表头部,称为最近的一个元素
 func LPush(pool *redis.Pool, key string, member interface{}) error {
 	conn, err := GetRedisConn(pool)
 	if err != nil {

@@ -16,8 +16,6 @@ import (
 	"time"
 )
 
-
-
 type CacheTask struct {
 	//线程池
 	pool       *pool.Pool
@@ -26,20 +24,18 @@ type CacheTask struct {
 	rediscache *sencond.RedisCache
 	//redis分布式锁
 	redisLock *lock.RedisLock
-	pubsubs *pubsub.PubSubService
-	syncdata *sync2.SyncDataService
-	pullmsg *pullmsg.PullMsg
-
-
+	pubsubs   *pubsub.PubSubService
+	syncdata  *sync2.SyncDataService
+	pullmsg   *pullmsg.PullMsg
 }
 
-//系统初始化
+//系统初始化 服务容错，可靠性，消息一致性，心跳探活/重连检测，清空队列消息，同步最新offset
 func InitTask() {
-	cacheTask:=NewCacheTask()
+	cacheTask := NewCacheTask()
 	//服务启动同步最新的消息偏移量OFFSET
 	cacheTask.SyncOffset()
-	//todo 启动拉取消息任务线程,防止丢消息
-	//go cacheTask.taskPullMsg()
+	//启动拉取消息任务线程防止丢消息
+	go cacheTask.taskPullMsg()
 	//启动凌晨重置消息队列任务线程
 	go cacheTask.clearMessageQueueTask()
 	//重连检测，防止redis,pub ,sub 掉线
@@ -53,29 +49,28 @@ var (
 	once         sync.Once
 )
 
-func NewCacheTask()*CacheTask {
+func NewCacheTask() *CacheTask {
 	pool := pool.NewPool(helper.DefaultGPoolWorkerNum, helper.DefaultGPoolJobQueueChanLen)
-	pubsubs:=pubsub.NewPubSub()
-	redisCache,_:= sencond.NewRedisCache()
-	redislock:=lock.NewRedisLock(redisCache)
-	syncdataservice:=sync2.NewSyncDataService()
-	pullmsg:=pullmsg.NewPullMsg()
+	pubsubs := pubsub.NewPubSub()
+	redisCache, _ := sencond.NewRedisCache()
+	redislock := lock.NewRedisLock(redisCache)
+	syncdataservice := sync2.NewSyncDataService()
+	pullmsg := pullmsg.NewPullMsg()
 	once.Do(func() {
-		cacheTask :=CacheTask{
+		cacheTask := CacheTask{
 			pool:       pool,
 			stop:       make(chan struct{}, 1),
 			stopOnce:   sync.Once{},
 			rediscache: redisCache,
 			redisLock:  redislock,
 			pubsubs:    pubsubs,
-			syncdata: syncdataservice,
-			pullmsg: pullmsg,
+			syncdata:   syncdataservice,
+			pullmsg:    pullmsg,
 		}
 		onceinstance = &cacheTask
 	})
 	return onceinstance
 }
-
 
 //服务启动同步最新的消息偏移量OFFSET
 func (c *CacheTask) SyncOffset() {
@@ -147,6 +142,7 @@ func (c *CacheTask) taskPullMsg() {
 		}
 	}
 }
+
 //关闭
 func (c *CacheTask) Close() {
 	c.stopOnce.Do(func() {
@@ -154,8 +150,3 @@ func (c *CacheTask) Close() {
 		close(c.stop)
 	})
 }
-
-
-
-
-

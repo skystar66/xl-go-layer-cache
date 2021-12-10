@@ -19,10 +19,10 @@ func main() {
 
 	//glog.Path("/Users/xuliang/Documents/g2cache/log/g2cache.log")
 	glog.SetAsync(true)
-	glog.SetStdoutPrint(false)
+	glog.SetStdoutPrint(true)
 
-	glog.SetDebug(false)
-	helper.CacheDebug = false
+	glog.SetDebug(true)
+	helper.CacheDebug = true
 	glog.SetPath("/Users/xuliang/Documents/g2cache/log/g2cache.log")
 
 	//创建一个缓存 一级缓存过期时间：20s，二级缓存过期时间：6小时，预刷新缓存的时间：10s
@@ -30,17 +30,17 @@ func main() {
 
 	//todo 测试一下超时自动恢复
 
-	//TestCache(cache)
+	TestCache(cache)
 	//cache
 	//压测写入
 	//for i := 0; i < 2; i++ {
 	//	AbTestWrite(cache)
 	//}
 
-	//压测读取
-	for i := 0; i < 100; i++ {
-		AbTestRead(cache)
-	}
+	////压测读取
+	//for i := 0; i < 100; i++ {
+	//	AbTestRead(cache)
+	//}
 
 	//CpuCount()
 	select {}
@@ -51,8 +51,21 @@ func TestCache(cache *cache.LayeringCache) {
 
 	key1 := "qqq"
 	key2 := "wwww"
+
+
+	cache.Get(key1,gtype.String{}, func(key string) (interface{}, error) {
+		glog.Infof("获取数据库返回数据:%s",key)
+		return key,nil
+	})
+
+	cache.Get(key2,gtype.String{}, func(key string) (interface{}, error) {
+		glog.Infof("获取数据库返回数据:%s",key)
+		return key,nil
+	})
+
 	cache.Set(key1, key1)
 	cache.Set(key2, key2)
+
 
 	cache.Delete(key1)
 	cache.Delete(key2)

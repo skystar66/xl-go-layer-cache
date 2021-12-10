@@ -44,8 +44,11 @@ type LayeringCache struct {
 
 func init() {
 	//helper.InitRedis()
+	//初始化自动检测超时线程，开启检查线程容器任务，及时释放线程资源
 	container.InitThreadTimeout()
+	//初始化redis pub sub订阅任务，监听队列消息，处理缓存同步
 	pubsub.InitPubSub()
+	//系统初始化
 	task.InitTask()
 }
 
@@ -125,7 +128,7 @@ func (g *LayeringCache) Get(key string, obj interface{}, loadFn _interface.LoadD
 		//缓存预刷新
 		g.refreshCache(key, result.Value, loadFn)
 	}
-	//设置一级缓存
+	//设置一级缓存带过期时间
 	g.freecache.SetExpireTime(key, result, time.Duration(g.firstExpireTime))
 	if helper.CacheDebug {
 		glog.Debugf("查询二级缓存,并将数据放到一级缓存。 key=%s,返回值是:%s", key, json.ToJson(result))
