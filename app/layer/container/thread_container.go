@@ -106,6 +106,11 @@ func CheckTimeoutThread() {
 			for key, value := range threadContainerMap.Items() {
 				lists := value.(*list.List)
 				fmt.Printf("key=%s size=%d \n", key, lists.Len())
+				if lists.Len()<=0 {
+					//如果当前key的线程容器为空，自动移除map中的当前key，释放内存
+					threadContainerMap.Remove(key)
+					continue
+				}
 				for i := lists.Front(); i != nil; i = i.Next() {
 					tcm := i.Value.(ThreadCondMap)
 					//校验锁是否超时

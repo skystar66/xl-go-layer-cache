@@ -27,7 +27,7 @@ type Pool struct {
 	stopped  chan struct{}
 	//线程阻塞等待
 	wg sync.WaitGroup
-	//补货线程池中的异常
+	//捕获线程池中的异常
 	PanicHandler func(interface{})
 }
 
